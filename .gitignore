@@ -1,0 +1,20 @@
+# IDE
+.vscode/
+.idea/
+
+#Flutter
+.dart_tool
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+android/app/.cxx/Debug/
+.macos/
+.ios/
+ios/Pods/
+android/.gradle/
+
+#Node.js
+node_modules/
+
+#logs
+*.log

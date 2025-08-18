@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "951648403042",
+    "project_id": "zuypham-281203",
+    "storage_bucket": "zuypham-281203.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:951648403042:android:526694f00b031eaf01db3b",
+        "android_client_info": {
+          "package_name": "com.example.medication_management_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPSpp3XwulUZfrlKFIdUDZ-g05pPd3IH4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
