@@ -1,22 +1,23 @@
 {
-  "name": "backend",
+  "name": "atlas_starter_nodejs",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "MongoDB Node.js driver and Atlas Starter Application",
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mongodb-university/atlas_starter_nodejs.git"
   },
-  "keywords": [],
-  "author": "",
+  "author": "chris.cho@mongodb.com",
   "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "mongodb": "^6.16.0"
+  "bugs": {
+    "url": "https://github.com/mongodb-university/atlas_starter_nodejs/issues"
   },
-  "devDependencies": {
-    "@types/node": "^22.15.29"
+  "homepage": "https://github.com/mongodb-university/atlas_starter_nodejs#readme",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^3.5.9"
   }
 }
