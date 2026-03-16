@@ -27,61 +27,133 @@ class _BillsPageState extends State<BillsPage> {
     });
   }
 
+  void changeLoading() {
+    setState(() {
+      isLoading != isLoading;
+    });
+  }
+
   Future<void> loadData() async {
-    final baseUrl = AppService.getBaseUrl();
-
-    final response = await http.get(Uri.parse('$baseUrl/api/bills/'));
-
-    if (response.statusCode == 200) {
-      final resBody = jsonDecode(response.body);
-      final List dataList = resBody['dataBills'];
-      if (dataList.isNotEmpty) {
-        if (!mounted) return;
-
-        final List<Map<String, dynamic>> safeData =
-            dataList.cast<Map<String, dynamic>>();
-
-        await storage.write(key: 'billsData', value: jsonEncode(safeData));
-
-        setState(() {
-          billsData = safeData;
-          isLoading = false;
-        });
-      }
-    } else {
-      print("Lỗi: ${response.statusCode}");
+    String? token = await storage.read(key: 'token');
+    try {
+      final baseUrl = AppService.getBaseUrl();
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/bills/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
       if (!mounted) return;
-      setState(() => isLoading = true);
+
+      if (response.statusCode == 200) {
+        final resBody = jsonDecode(response.body);
+        if (!mounted) return;
+        final List dataList = resBody['dataBills'];
+        if (dataList.isNotEmpty) {
+          final List<Map<String, dynamic>> safeData =
+              dataList.cast<Map<String, dynamic>>();
+
+          await storage.write(key: 'billsData', value: jsonEncode(safeData));
+
+          setState(() {
+            billsData = safeData;
+            isLoading = false;
+          });
+        }
+      } else {
+        print("Lỗi: ${response.statusCode}");
+        if (!mounted) return;
+        setState(() => isLoading = true);
+      }
+    } catch (e) {
+      // if (!mounted) return;
+
+      showMessagePopup("Không thể kết nối server");
+      changeLoading();
+
+      print("API error: $e");
     }
   }
 
-  Future<void> searchData(String text) async {
-    final baseUrl = AppService.getBaseUrl();
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/bills/search-bills/?q=$text'),
+  void showMessagePopup(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.green[50],
+          title: Text(
+            "Thông báo",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              color: Colors.green.shade900,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(fontSize: 20, fontFamily: 'Poppins'),
+          ),
+          actions: [
+            TextButton(
+              child: Text(
+                "OK",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                  color: Colors.green.shade900,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); // đóng dialog
+              },
+            ),
+          ],
+        );
+      },
     );
+  }
 
-    if (response.statusCode == 200) {
-      final resBody = jsonDecode(response.body);
-      final List dataList = resBody['dataBills'];
-      if (dataList.isNotEmpty) {
+  Future<void> searchData(String text) async {
+    try {
+      final baseUrl = AppService.getBaseUrl();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/bills/search-bills/?q=$text'),
+      );
+
+      if (response.statusCode == 200) {
+        final resBody = jsonDecode(response.body);
+        final List dataList = resBody['dataBills'];
+        if (dataList.isNotEmpty) {
+          if (!mounted) return;
+
+          // Đảm bảo giữ nguyên kiểu dữ liệu ban đầu (bao gồm List, Map)
+          final List<Map<String, dynamic>> safeData =
+              dataList.cast<Map<String, dynamic>>();
+
+          await storage.write(key: 'productsData', value: jsonEncode(safeData));
+
+          setState(() {
+            billsData = safeData;
+            isLoading = false;
+          });
+        }
+      } else {
+        print("Lỗi: ${response.statusCode}");
         if (!mounted) return;
-
-        // Đảm bảo giữ nguyên kiểu dữ liệu ban đầu (bao gồm List, Map)
-        final List<Map<String, dynamic>> safeData =
-            dataList.cast<Map<String, dynamic>>();
-
-        await storage.write(key: 'productsData', value: jsonEncode(safeData));
-
-        setState(() {
-          billsData = safeData;
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
       }
-    } else {
-      print("Lỗi: ${response.statusCode}");
+    } catch (e) {
       if (!mounted) return;
-      setState(() => isLoading = false);
+
+      showMessagePopup("Không thể kết nối server");
+      changeLoading();
+
+      print("API error: $e");
     }
   }
 

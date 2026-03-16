@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:medication_management_app/AppService.dart';
 
 class EditItem extends StatefulWidget {
@@ -21,7 +24,10 @@ class EditItem extends StatefulWidget {
 }
 
 class _EditItemState extends State<EditItem> {
+  final storage = FlutterSecureStorage();
   final _formKey = GlobalKey<FormState>();
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
   Map<String, dynamic>? formData = {
     "_id": "",
     "tenthuoc": "",
@@ -80,6 +86,16 @@ class _EditItemState extends State<EditItem> {
     hoatChatList = List<Map<String, String>>.from(widget.hoatchatList);
   }
 
+  Future<void> pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
   void addHoatChat() {
     final tenHoatChat = hoatChatController.text.trim();
     final khoiLuong = khoiluongHCController.text.trim();
@@ -128,32 +144,62 @@ class _EditItemState extends State<EditItem> {
     }
   }
 
-  void onSubmit() {
+  void onSubmit() async {
     formData?["hoatchat"] = hoatChatList;
     formData?["luuy"] = luuyList;
-    submitData(formData!);
-    Navigator.pushReplacementNamed(context, "/");
+    await submitData(formData!);
   }
 
   Future<void> submitData(Map<String, dynamic> formData) async {
-    final baseUrl = AppService.getBaseUrl();
+    try {
+      final baseUrl = AppService.getBaseUrl();
+      String? token = await storage.read(key: 'token');
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/medicins/edit'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(formData),
-    );
+      var request = http.MultipartRequest(
+        "POST",
+        Uri.parse("$baseUrl/api/medicins/edit"),
+      );
 
-    final resBody = jsonDecode(response.body);
-    if (!mounted) return;
-    if (response.statusCode == 200) {
-      final message = resBody['message'];
-      showMessagePopup(message); // Hiển thị popup thông báo
-    } else if (response.statusCode == 401) {
-      final messageErr = resBody['error'];
-      showMessagePopup(messageErr); // Có thể thêm dòng này để hiển thị lỗi
-    } else {
-      showMessagePopup("Lỗi kết nối: ${response.statusCode}");
+      request.headers["Authorization"] = "Bearer $token";
+
+      formData.forEach((key, value) {
+        if (value is List || value is Map) {
+          request.fields[key] = jsonEncode(value);
+        } else {
+          request.fields[key] = value.toString();
+        }
+      });
+
+      if (_selectedImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath("image", _selectedImage!.path),
+        );
+      }
+
+      final response = await request.send();
+      print("STATUS: ${response.statusCode}");
+      final responseBody = await response.stream.bytesToString();
+      print("BODY RAW: $responseBody");
+      Map<String, dynamic> resBody = {};
+
+      if (responseBody.isNotEmpty) {
+        print("BEFORE JSON");
+        print(responseBody);
+
+        resBody = jsonDecode(responseBody);
+
+        print("AFTER JSON");
+      }
+
+      if (response.statusCode == 200) {
+        showMessagePopup(resBody["message"]);
+        if (!mounted) return;
+      } else {
+        showMessagePopup(resBody["error"] ?? "Lỗi server");
+      }
+    } catch (e) {
+      print("Edit medicine error: $e");
+      showMessagePopup("Không thể kết nối đến server");
     }
   }
 
@@ -188,7 +234,8 @@ class _EditItemState extends State<EditItem> {
                 ),
               ),
               onPressed: () {
-                Navigator.of(context).pop(); // đóng dialog
+                Navigator.of(context).pop();
+                Navigator.pushReplacementNamed(context, "/");
               },
             ),
           ],
@@ -218,7 +265,30 @@ class _EditItemState extends State<EditItem> {
               _buildTextField("Tác dụng phụ", "tacdungphu", maxLines: 3),
               _buildTextField("Xuất xứ thương hiệu", "xuatsuthuonghieu"),
               _buildTextField("Nước sản xuất", "nuocsanxuat"),
-              _buildTextField("URL Hình ảnh", "image"),
+              SizedBox(height: 20),
+              Text(
+                "Ảnh hiện tại",
+                style: TextStyle(fontWeight: FontWeight.normal, fontSize: 18),
+              ),
+              SizedBox(height: 20),
+              formData?["image"] != null
+                  ? Image.network(formData?['image'], fit: BoxFit.cover)
+                  : Text("Hiện tại chưa có ảnh"),
+              SizedBox(height: 20),
+              Text(
+                "Ảnh thay đổi",
+                style: TextStyle(fontWeight: FontWeight.normal, fontSize: 18),
+              ),
+              _selectedImage != null
+                  ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                  : Text("Chưa chọn ảnh"),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: pickImage,
+                child: Text("Chọn ảnh từ thư viện"),
+              ),
+              SizedBox(height: 20),
+
               _buildTextField("Giá tham khảo", "giathamkhao"),
               _buildTextField("Tá dược", "taduoc"),
               _buildTextField("Danh mục", "danhmuc"),

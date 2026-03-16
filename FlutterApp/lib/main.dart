@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -26,7 +28,8 @@ final _plugin = FlutterLocalNotificationsPlugin();
 
 class _MyAppState extends State<MyApp> {
   final storage = FlutterSecureStorage();
-  bool? _isLoggedIn = false;
+
+  bool? _isLoggedIn = null;
 
   @override
   void initState() {
@@ -35,11 +38,12 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initApp() async {
+    await _checkToken();
     await requestNotificationPermission();
-    await _checkLoginStatus();
   }
 
   Future<void> requestNotificationPermission() async {
+    String? token = await storage.read(key: 'token');
     final androidPlugin =
         _plugin
             .resolvePlatformSpecificImplementation<
@@ -47,34 +51,41 @@ class _MyAppState extends State<MyApp> {
             >();
   }
 
-  Future<void> _checkLoginStatus() async {
-    try {
-      String? token = await storage
-          .read(key: 'token')
-          .timeout(
-            const Duration(seconds: 3),
-            onTimeout: () {
-              print('Storage read timed out');
-              return null;
-            },
-          );
-      print(token);
+  Future<void> _checkToken() async {
+    String? token = await storage.read(key: 'token');
 
-      if (token != null && token != "") {
+    try {
+      if (token == null || token.isEmpty) {
+        setState(() {
+          _isLoggedIn = false;
+        });
+        return;
+      }
+      final baseUrl = AppService.getBaseUrl();
+
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/profile'),
+            headers: {
+              "Authorization": "Bearer $token",
+              "Content-Type": "application/json",
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
         setState(() {
           _isLoggedIn = true;
         });
+        _onLogRegSuccess();
+      } else {
+        setState(() {
+          _isLoggedIn = false;
+        });
       }
-      if (_isLoggedIn != null && _isLoggedIn == true) {
-        await NotificationService.showNotification(
-          0,
-          "Thông báo đăng nhập thành công",
-          "Bạn đã đăng nhập thành công vào ứng dụng quản lý thuốc",
-        );
-      }
-      print('Token read: $token, isLoggedIn: $_isLoggedIn');
-    } catch (e, stackTrace) {
-      print('Error reading token: $e, StackTrace: $stackTrace');
+    } catch (e) {
+      print("Token check error: $e");
+
       setState(() {
         _isLoggedIn = false;
       });
@@ -128,7 +139,7 @@ class _MyAppState extends State<MyApp> {
         );
 
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
-          "/login",
+          "/logreg",
           (route) => false,
         );
       } catch (e, stackTrace) {
@@ -142,7 +153,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  void _onLoginSuccess() async {
+  void _onLogRegSuccess() async {
     if (_isLoggedIn != null && _isLoggedIn == true) {
       await NotificationService.showNotification(
         0,
@@ -203,8 +214,8 @@ class _MyAppState extends State<MyApp> {
                     ? const Center(child: CircularProgressIndicator())
                     : _isLoggedIn!
                     ? IndexPage(onLogout: _logout, indexNum: 0)
-                    : LogRegPage(onLoginSuccess: _onLoginSuccess),
-        "/login": (context) => LogRegPage(onLoginSuccess: _onLoginSuccess),
+                    : LogRegPage(onLogRegSuccess: _onLogRegSuccess),
+        "/logreg": (context) => LogRegPage(onLogRegSuccess: _onLogRegSuccess),
         "/addMedicins": (context) => AddMedicinPage(),
         "/notification": (context) => IndexPage(onLogout: _logout, indexNum: 2),
       },

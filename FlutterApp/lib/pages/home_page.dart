@@ -31,16 +31,32 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void changeLoading() {
+    setState(() {
+      isLoading = !isLoading;
+    });
+  }
+
   Future<void> loadData() async {
-    final baseUrl = AppService.getBaseUrl();
+    try {
+      String? token = await storage.read(key: 'token');
+      final baseUrl = AppService.getBaseUrl();
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/medicins/lib'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
 
-    final response = await http.get(Uri.parse('$baseUrl/api/medicins/lib'));
+      if (!mounted) return;
 
-    if (response.statusCode == 200) {
-      final resBody = jsonDecode(response.body);
-      final List dataList = resBody['dataMedicins'];
-      if (dataList.isNotEmpty) {
-        if (!mounted) return;
+      if (response.statusCode == 200) {
+        final resBody = jsonDecode(response.body);
+        print(resBody);
+        final List dataList = resBody['dataMedicins'];
 
         final List<Map<String, dynamic>> safeData =
             dataList.cast<Map<String, dynamic>>();
@@ -51,42 +67,98 @@ class _HomePageState extends State<HomePage> {
           productsData = safeData;
           isLoading = false;
         });
+
+        if (!mounted) return;
+      } else {
+        print("Lỗi: ${response.statusCode}");
+        if (!mounted) return;
+        setState(() => isLoading = true);
       }
-    } else {
-      print("Lỗi: ${response.statusCode}");
-      if (!mounted) return;
-      setState(() => isLoading = true);
+    } catch (e) {
+      showMessagePopup("Không thể kết nối server");
+      changeLoading();
+
+      print("API error: $e");
     }
   }
 
   Future<void> searchData(String text) async {
-    final baseUrl = AppService.getBaseUrl();
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/medicins/search-medicins-lib/?q=$text'),
-    );
+    try {
+      final baseUrl = AppService.getBaseUrl();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/medicins/search-medicins-lib/?q=$text'),
+      );
 
-    if (response.statusCode == 200) {
-      final resBody = jsonDecode(response.body);
-      final List dataList = resBody['dataMedicins'];
-      if (dataList.isNotEmpty) {
+      if (response.statusCode == 200) {
+        final resBody = jsonDecode(response.body);
+        final List dataList = resBody['dataMedicins'];
+        if (dataList.isNotEmpty) {
+          if (!mounted) return;
+
+          // Đảm bảo giữ nguyên kiểu dữ liệu ban đầu (bao gồm List, Map)
+          final List<Map<String, dynamic>> safeData =
+              dataList.cast<Map<String, dynamic>>();
+
+          await storage.write(key: 'productsData', value: jsonEncode(safeData));
+
+          setState(() {
+            productsData = safeData;
+            isLoading = false;
+          });
+        }
+      } else {
+        print("Lỗi: ${response.statusCode}");
         if (!mounted) return;
-
-        // Đảm bảo giữ nguyên kiểu dữ liệu ban đầu (bao gồm List, Map)
-        final List<Map<String, dynamic>> safeData =
-            dataList.cast<Map<String, dynamic>>();
-
-        await storage.write(key: 'productsData', value: jsonEncode(safeData));
-
-        setState(() {
-          productsData = safeData;
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
       }
-    } else {
-      print("Lỗi: ${response.statusCode}");
+    } catch (e) {
       if (!mounted) return;
-      setState(() => isLoading = false);
+
+      showMessagePopup("Không thể kết nối server");
+      changeLoading();
+
+      print("API error: $e");
     }
+  }
+
+  void showMessagePopup(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.green[50],
+          title: Text(
+            "Thông báo",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              color: Colors.green.shade900,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(fontSize: 20, fontFamily: 'Poppins'),
+          ),
+          actions: [
+            TextButton(
+              child: Text(
+                "OK",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                  color: Colors.green.shade900,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); // đóng dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override

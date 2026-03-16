@@ -16,6 +16,7 @@ class statisPage extends StatefulWidget {
 }
 
 class _statisPageState extends State<statisPage> {
+  bool? isLoading = true;
   int touchedIndex = -1;
   Key tweenKey = UniqueKey();
   FlutterSecureStorage storage = FlutterSecureStorage();
@@ -28,52 +29,123 @@ class _statisPageState extends State<statisPage> {
     loadData();
   }
 
+  void changeLoading() {
+    setState(() {
+      isLoading != isLoading;
+    });
+  }
+
   Future<void> loadData() async {
-    final baseUrl = AppService.getBaseUrl();
+    try {
+      String? token = await storage.read(key: 'token');
+      print(token);
+      final baseUrl = AppService.getBaseUrl();
 
-    final response = await http.get(Uri.parse('$baseUrl/api/statis'));
-    final responseCategory = await http.get(
-      Uri.parse('$baseUrl/api/statis/category'),
-    );
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/statis/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+      final responseCategory = await http
+          .get(
+            Uri.parse('$baseUrl/api/statis/category'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
 
-    if (response.statusCode == 200) {
-      final resBody = jsonDecode(response.body);
-      final dataMap = resBody['statisData'] as Map<String, dynamic>;
-      if (dataMap.isNotEmpty) {
+      if (response.statusCode == 200) {
+        final resBody = jsonDecode(response.body);
+        final dataMap = resBody['statisData'] as Map<String, dynamic>;
+        if (dataMap.isNotEmpty) {
+          if (!mounted) return;
+
+          final Map<String, dynamic> safeData = dataMap;
+
+          await storage.write(key: 'statisData', value: jsonEncode(safeData));
+
+          setState(() {
+            statisData = safeData;
+          });
+        }
+      } else {
+        print("Lỗi: ${response.statusCode}");
         if (!mounted) return;
-
-        final Map<String, dynamic> safeData = dataMap;
-
-        await storage.write(key: 'statisData', value: jsonEncode(safeData));
-
-        setState(() {
-          statisData = safeData;
-        });
       }
-    } else {
-      print("Lỗi: ${response.statusCode}");
-      if (!mounted) return;
-    }
 
-    if (responseCategory.statusCode == 200) {
-      final resBody = jsonDecode(responseCategory.body);
+      if (responseCategory.statusCode == 200) {
+        final resBody = jsonDecode(responseCategory.body);
 
-      if (resBody['statisDataCategory'].isNotEmpty) {
+        if (resBody['statisDataCategory'].isNotEmpty) {
+          if (!mounted) return;
+
+          await storage.write(
+            key: 'staticDataCategory',
+            value: resBody['statisDataCategory'],
+          );
+
+          setState(() {
+            statisDataCategory = jsonDecode(resBody['statisDataCategory']);
+          });
+        }
+      } else {
+        print("Lỗi: ${response.statusCode}");
         if (!mounted) return;
+      }
+    } catch (e) {
+      if (!mounted) return;
 
-        await storage.write(
-          key: 'staticDataCategory',
-          value: resBody['statisDataCategory'],
+      showMessagePopup("Không thể kết nối server");
+      changeLoading();
+
+      print("API error: $e");
+    }
+  }
+
+  void showMessagePopup(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.green[50],
+          title: Text(
+            "Thông báo",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+              color: Colors.green.shade900,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(fontSize: 20, fontFamily: 'Poppins'),
+          ),
+          actions: [
+            TextButton(
+              child: Text(
+                "OK",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                  color: Colors.green.shade900,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); // đóng dialog
+              },
+            ),
+          ],
         );
-
-        setState(() {
-          statisDataCategory = jsonDecode(resBody['statisDataCategory']);
-        });
-      }
-    } else {
-      print("Lỗi: ${response.statusCode}");
-      if (!mounted) return;
-    }
+      },
+    );
   }
 
   @override
@@ -222,8 +294,7 @@ class _statisPageState extends State<statisPage> {
                 title: "Tổng thuốc còn khả dụng",
                 value:
                     statisData.isNotEmpty
-                        ? (statisData['available'] + statisData['available'])
-                            .toString()
+                        ? (statisData['available']).toString()
                         : "0",
                 color: Colors.green.shade400,
                 onTap: () {

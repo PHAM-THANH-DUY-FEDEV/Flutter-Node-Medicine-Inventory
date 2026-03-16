@@ -20,6 +20,7 @@ class ListMedicinsLib extends StatefulWidget {
 }
 
 class _ListMedicinsLibState extends State<ListMedicinsLib> {
+  final storage = FlutterSecureStorage();
   String? message = "";
   void showMessagePopup(BuildContext context, String message) {
     showDialog(
@@ -66,10 +67,14 @@ class _ListMedicinsLibState extends State<ListMedicinsLib> {
   }
 
   Future<void> onDelete(String? id) async {
+    String? token = await storage.read(key: 'token');
     final baseUrl = AppService.getBaseUrl();
     final response = await http.get(
       Uri.parse('$baseUrl/api/medicins/delete?id=$id'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        "Authorization": "Bearer $token",
+      },
     );
 
     final resBody = jsonDecode(response.body);

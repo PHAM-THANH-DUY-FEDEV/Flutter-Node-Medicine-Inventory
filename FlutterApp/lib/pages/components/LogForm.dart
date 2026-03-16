@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:medication_management_app/AppService.dart';
 
 class LogForm extends StatefulWidget {
-  final VoidCallback onLoginSuccess;
-  const LogForm({super.key, required this.onLoginSuccess});
+  final VoidCallback onLogRegSuccess;
+  const LogForm({super.key, required this.onLogRegSuccess});
 
   @override
   State<LogForm> createState() => _LogFormState();
@@ -108,27 +108,27 @@ class _LogFormState extends State<LogForm> {
         'password': passwordController.text,
       }),
     );
-    final resBody = jsonDecode(response.body);
+    final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
-      final token = resBody['token'];
-      final ids = resBody['ids'];
-      print(ids);
-      await _writeToken(token, ids);
+      final token = data['token'];
+      final userId = data['userId'];
+      print(userId);
+      await _writeToken(token, userId);
       try {
-        print('Gọi onLoginSuccess...');
-        widget.onLoginSuccess();
-        print('onLoginSuccess đã được gọi thành công.');
+        print('Gọi onLogRegSuccess...');
+        widget.onLogRegSuccess();
+        print('onLogRegSuccess đã được gọi thành công.');
       } catch (e, stackTrace) {
-        print('Lỗi khi gọi onLoginSuccess: $e, StackTrace: $stackTrace');
+        print('Lỗi khi gọi onLogRegSuccess: $e, StackTrace: $stackTrace');
         setState(() {
           message = "Error calling callback: $e";
         });
       }
     } else if (response.statusCode == 409) {
-      setState(() => message = "Đăng nhập thất bại: ${resBody['error']}");
+      setState(() => message = "Đăng nhập thất bại: ${data['message']}");
       showMessagePopup(message!);
     } else if (response.statusCode == 401) {
-      setState(() => message = "Đăng nhập thất bại: ${resBody['error']}");
+      setState(() => message = "Đăng nhập thất bại: ${data['message']}");
       showMessagePopup(message!);
     }
   }
@@ -232,51 +232,6 @@ class _LogFormState extends State<LogForm> {
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 20),
-
-        Container(
-          alignment: Alignment.centerLeft,
-          margin: const EdgeInsets.only(left: 5, bottom: 10),
-          child: Text(
-            "Đăng nhập bằng email:",
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.green.shade700,
-            ),
-          ),
-        ),
-        Row(
-          // mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            Container(
-              // padding: const EdgeInsets.all(),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(45),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: Offset(1, 1), // changes position of shadow
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: Image.asset(
-                  "assets/iconsPng/google.png",
-                  width: 40,
-                  height: 40,
-                ),
-                onPressed: () {
-                  // Xử lý đăng nhập bằng Facebook
-                },
-              ),
-            ),
-          ],
         ),
       ],
     );

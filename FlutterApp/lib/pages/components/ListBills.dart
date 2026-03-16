@@ -17,6 +17,7 @@ class Listbills extends StatefulWidget {
 }
 
 class _ListbillsState extends State<Listbills> {
+  final storage = FlutterSecureStorage();
   String? message = "";
   void showMessagePopup(BuildContext context, String message) {
     showDialog(
@@ -63,28 +64,36 @@ class _ListbillsState extends State<Listbills> {
   }
 
   Future<void> onDelete(String? id) async {
-    final baseUrl = AppService.getBaseUrl();
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/bills/delete?id=$id'),
-      headers: {'Content-Type': 'application/json'},
-    );
+    try {
+      final baseUrl = AppService.getBaseUrl();
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/bills/delete?id=$id'),
+        headers: {'Content-Type': 'application/json'},
+      );
 
-    final resBody = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      setState(() {
-        message = resBody['message'];
-      });
-      onMessage(message!); // Hiển thị popup thông báo
-      // ignore: use_build_context_synchronously
-      widget.onLoadData();
-    } else if (response.statusCode == 401) {
-      setState(() {
-        message = resBody['error'];
-      });
-      onMessage(message!);
-    } else {
-      onMessage("Lỗi kết nối: ${response.statusCode}");
+      final resBody = jsonDecode(response.body);
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        setState(() {
+          message = resBody['message'];
+        });
+        onMessage(message!); // Hiển thị popup thông báo
+        // ignore: use_build_context_synchronously
+        widget.onLoadData();
+      } else if (response.statusCode == 401) {
+        setState(() {
+          message = resBody['error'];
+        });
+        onMessage(message!);
+      } else {
+        onMessage("Lỗi kết nối: ${response.statusCode}");
+      }
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      print("Delete Bill error: $e");
+      showMessagePopup(context, "Không thể kết nối tới server");
     }
   }
 
@@ -94,7 +103,7 @@ class _ListbillsState extends State<Listbills> {
       builder:
           (ctx) => AlertDialog(
             title: Text('Xác nhận xoá'),
-            content: Text('Bạn có chắc chắn muốn xoá thuốc này không?'),
+            content: Text('Bạn có chắc chắn muốn xóa hóa đơn này không?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),

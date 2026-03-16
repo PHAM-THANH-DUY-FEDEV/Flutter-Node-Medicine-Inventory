@@ -4,8 +4,8 @@ import 'package:medication_management_app/pages/components/LogForm.dart';
 import 'package:medication_management_app/pages/components/RegForm.dart';
 
 class LogRegPage extends StatefulWidget {
-  final VoidCallback onLoginSuccess;
-  const LogRegPage({super.key, required this.onLoginSuccess});
+  final VoidCallback onLogRegSuccess;
+  const LogRegPage({super.key, required this.onLogRegSuccess});
   @override
   State<LogRegPage> createState() => _LogRegPageState();
 }
@@ -147,11 +147,15 @@ class _LogRegPageState extends State<LogRegPage> {
                 const SizedBox(height: 20),
                 isLoginForm
                     ? LogForm(
-                      onLoginSuccess: () {
-                        widget.onLoginSuccess();
+                      onLogRegSuccess: () {
+                        widget.onLogRegSuccess();
                       },
                     )
-                    : RegForm(),
+                    : RegForm(
+                      onLogRegSuccess: () {
+                        widget.onLogRegSuccess();
+                      },
+                    ),
               ],
             ),
           ),

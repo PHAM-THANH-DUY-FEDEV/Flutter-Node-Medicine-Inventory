@@ -3,10 +3,13 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:medication_management_app/AppService.dart';
+import 'package:medication_management_app/main.dart';
 import 'package:medication_management_app/pages/validators.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class RegForm extends StatefulWidget {
-  RegForm({super.key});
+  final VoidCallback onLogRegSuccess;
+  RegForm({super.key, required this.onLogRegSuccess});
 
   @override
   State<RegForm> createState() => _RegFormState();
@@ -18,6 +21,7 @@ class _RegFormState extends State<RegForm> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController passwordComfirmController =
       TextEditingController();
+  final storage = FlutterSecureStorage();
 
   String? message = "";
 
@@ -61,6 +65,33 @@ class _RegFormState extends State<RegForm> {
     );
   }
 
+  Future<void> _writeToken(String token, String ids) async {
+    try {
+      await storage
+          .write(key: 'token', value: token)
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {
+              print('Storage write timed out');
+              throw Exception('Storage write timed out');
+            },
+          );
+      await storage
+          .write(key: 'id', value: ids)
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {
+              print('Storage write timed out');
+              throw Exception('Storage write timed out');
+            },
+          );
+      print('Token written: $token');
+    } catch (e, stackTrace) {
+      print('Error writing token: $e, StackTrace: $stackTrace');
+      rethrow;
+    }
+  }
+
   Future<void> regisUser() async {
     final baseUrl = AppService.getBaseUrl();
 
@@ -75,25 +106,40 @@ class _RegFormState extends State<RegForm> {
       }),
     );
 
-    final resBody = jsonDecode(response.body);
+    final data = jsonDecode(response.body);
+
     if (response.statusCode == 200) {
+      final token = data['token'];
+      final userId = data['userId'];
+      await _writeToken(token, userId);
+      String? savedToken = await storage.read(key: "token");
+      print("TOKEN REGISTER: $savedToken");
       setState(() {
-        message = "Đăng ký thành công vui lòng đăng nhập";
+        message = "Đăng ký thành công";
       });
       showMessagePopup(message!);
-      print("Đăng ký thành công: ${resBody['id']}");
+      try {
+        print('Gọi onLogRegSuccess...');
+        widget.onLogRegSuccess();
+        print('onLogRegSuccess đã được gọi thành công.');
+      } catch (e, stackTrace) {
+        print('Lỗi khi gọi onLogRegSuccess: $e, StackTrace: $stackTrace');
+        setState(() {
+          message = "Error calling callback: $e";
+        });
+      }
     } else if (response.statusCode == 409) {
       setState(() {
-        message = "Đăng ký thất bại: ${resBody['error']}";
+        message = "Đăng ký thất bại: ${data['error']}";
       });
       showMessagePopup(message!);
-      print("Đăng ký thất bại: ${resBody['error']}");
+      print("Đăng ký thất bại: ${data['error']}");
     } else if (response.statusCode == 400) {
       setState(() {
-        message = "Đăng ký thất bại: ${resBody['error']}";
+        message = "Đăng ký thất bại: ${data['error']}";
       });
       showMessagePopup(message!);
-      print("Đăng ký thất bại: ${resBody['error']}");
+      print("Đăng ký thất bại: ${data['error']}");
     }
   }
 
@@ -277,51 +323,6 @@ class _RegFormState extends State<RegForm> {
                 ),
               ),
             ),
-          ),
-
-          const SizedBox(height: 10),
-          Container(
-            alignment: Alignment.centerLeft,
-            margin: const EdgeInsets.only(left: 5, bottom: 10),
-            child: Text(
-              "Đăng ký bằng email:",
-              textAlign: TextAlign.left,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade700,
-              ),
-            ),
-          ),
-          Row(
-            // mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Container(
-                // padding: const EdgeInsets.all(),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(45),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.3),
-                      spreadRadius: 1,
-                      blurRadius: 10,
-                      offset: Offset(1, 1), // changes position of shadow
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: Image.asset(
-                    "assets/iconsPng/google.png",
-                    width: 40,
-                    height: 40,
-                  ),
-                  onPressed: () {
-                    // Xử lý đăng nhập bằng email
-                  },
-                ),
-              ),
-            ],
           ),
         ],
       ),
