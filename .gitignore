@@ -15,6 +15,7 @@ android/.gradle/
 
 #Node.js
 node_modules/
+NodeBackend/config/service-account.json
 
 #logs
 *.log
